@@ -129,11 +129,20 @@ function pokazPolaczenie(zapamietany) {
       if (await zapamietany.polacz()) { st.dysk = zapamietany; wczytajRoczniki(); }
     } }));
   }
-  przyciski.push(el('button', { class: zapamietany ? '' : 'glowny', text: 'Wybierz folder „SKANY MAM DOŚĆ”…', onclick: async () => {
-    try { st.dysk = await DyskFolder.wybierz(); wczytajRoczniki(); } catch (e) { if (e.name !== 'AbortError') toast(e.message); }
-  } }));
+  przyciski.push(el('button', { class: zapamietany ? '' : 'glowny', text: 'Wybierz folder „SKANY MAM DOŚĆ”…', onclick: wybierzFolder }));
   p.replaceChildren(el('p', { text: 'Wskaż folder „SKANY MAM DOŚĆ” (raz – przeglądarka go zapamięta). Pliki zostają na Twoim dysku.' }),
     el('div', { class: 'boczne-przyciski' }, przyciski));
+}
+
+async function wybierzFolder() {
+  try {
+    await zapiszTeraz();
+    st.dysk = await DyskFolder.wybierz();
+    st.r = null;
+    await wczytajRoczniki();
+  } catch (e) {
+    if (e.name !== 'AbortError') toast(e.message);
+  }
 }
 
 // ------------------------------------------------------------------ roczniki
@@ -168,8 +177,16 @@ async function wczytajRoczniki() {
   sel.disabled = !roczniki.length;
   $('#b-scal').disabled = !roczniki.length;
   $('#b-odswiez').disabled = false;
+  $('#b-folder').classList.toggle('ukryta', st.dysk.rodzaj !== 'folder');
   if (!roczniki.length) {
-    $('#polaczenie').replaceChildren(el('p', { text: `W folderze „${st.dysk.nazwa}” nie ma jeszcze roczników zgonów pobranych z Weryfikacji.` }));
+    $('#widok').classList.add('ukryta');
+    $('#start').classList.remove('ukryta');
+    const wewnatrz = /^\d{4}$|^zgony$|^urodzenia$|^małżeństwa$|^pocięte$/i.test(nfc(st.dysk.nazwa)) || parafie.some((p) => /^\d{4}$|^pocięte$/.test(nfc(p)));
+    $('#polaczenie').replaceChildren(
+      el('p', {}, el('b', { text: `W folderze „${st.dysk.nazwa}” nie ma roczników zgonów pobranych z Weryfikacji.` })),
+      wewnatrz || st.dysk.rodzaj === 'folder'
+        ? el('p', { text: 'Wskaż folder „SKANY MAM DOŚĆ” – ten, w którym jest folder „Przytkowice” (nie rocznik ani folder „Zgony”).' }) : null,
+      st.dysk.rodzaj === 'folder' ? el('button', { class: 'glowny', text: 'Wybierz inny folder…', onclick: wybierzFolder }) : null);
     return;
   }
   $('#polaczenie').replaceChildren();
@@ -705,6 +722,7 @@ function podlacz() {
   $('#rocznik').addEventListener('change', (e) => otworzRocznik(st.roczniki[+e.target.value]));
   $('#b-xlsx').addEventListener('click', pobierzXlsx);
   $('#b-scal').addEventListener('click', scalLata);
+  $('#b-folder').addEventListener('click', wybierzFolder);
   $('#b-odswiez').addEventListener('click', async () => { await zapiszTeraz(); await wczytajRoczniki(); toast('Wczytano ponownie.'); });
   $('#b-poprzedni').addEventListener('click', () => pokazAkt(st.i - 1));
   $('#b-nastepny').addEventListener('click', () => pokazAkt(st.i + 1));

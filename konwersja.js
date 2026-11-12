@@ -66,13 +66,16 @@ export function ulamkiNaDziesietne(s) {
 
 // ------------------------------------------------------------------ wiek
 
+// jednostki wieku od największej; dni = ile dni ma jednostka (do sumowania „4 lata 3 miesiące”)
 const JEDNOSTKI = [
-  { re: /^(rok|roku|lat|lata|latek|r)\b/i, formy: ['rok', 'lata', 'lat', 'roku'] },
-  { re: /^(miesiąc|miesiąca|miesiące|miesięcy|mies|m-cy)/i, formy: ['miesiąc', 'miesiące', 'miesięcy', 'miesiąca'] },
-  { re: /^(tydzień|tygodnie|tygodni|tygodnia)/i, formy: ['tydzień', 'tygodnie', 'tygodni', 'tygodnia'] },
-  { re: /^(dzień|dni|dnia)/i, formy: ['dzień', 'dni', 'dni', 'dnia'] },
-  { re: /^(godzina|godziny|godzin|godz)/i, formy: ['godzina', 'godziny', 'godzin', 'godziny'] },
+  { re: /^(rok|roku|lat|lata|latek|r$|ann)/i, formy: ['rok', 'lata', 'lat', 'roku'], dni: 365.25 },
+  { re: /^(miesiąc|miesiąca|miesiące|miesięcy|mies|m-c|mens|m$)/i, formy: ['miesiąc', 'miesiące', 'miesięcy', 'miesiąca'], dni: 30.4375 },
+  { re: /^(tydzień|tygodnie|tygodni|tygodnia|tydz|tyg|hebd)/i, formy: ['tydzień', 'tygodnie', 'tygodni', 'tygodnia'], dni: 7 },
+  { re: /^(dzień|dni|dnia|dzie|dier|dies|die|d$)/i, formy: ['dzień', 'dni', 'dni', 'dnia'], dni: 1 },
+  { re: /^(godzina|godziny|godzin|godz|hor)/i, formy: ['godzina', 'godziny', 'godzin', 'godziny'], dni: 1 / 24 },
 ];
+// liczba z ułamkiem i (opcjonalnie) jednostką: „4 9/12 roku”, „1/2 roku”, „40½ lat”, „1,5 roku”, „6 mens.”
+const RE_WIEK = /(?:(?:(\d+)\s+)?(\d+)\s*\/\s*(\d+)|(\d+(?:\.\d+)?)?\s*([½¼¾⅓⅔⅙⅚⅛])|(\d+(?:\.\d+)?))\s*\.?\s*([a-ząćęłńóśźż-]+)?\.?/gi;
 
 /** Polska odmiana: 1 rok, 2 lata, 5 lat, 1,5 roku. */
 export function odmiana(n, formy) {
@@ -95,32 +98,36 @@ export function zaokraglij(x) {
 export function wiek(zrodlo) {
   const surowy = String(zrodlo ?? '').trim();
   if (pusty(surowy)) return { tekst: '', ulamek: false };
-  let t = surowy.replace(/\(.*?\)/g, ' ').replace(/\s+/g, ' ').trim();       // „4 11/12 (5) lat” -> „4 11/12 lat”
-  const nawias = t !== surowy.replace(/\s+/g, ' ').trim();
-  let m = t.match(/^(\d+)?\s?([½¼¾⅓⅔⅙⅚⅛])\s*(.*)$/);
-  let x, reszta;
-  if (m) {
-    x = (m[1] ? +m[1] : 0) + ULAMKI[m[2]]; reszta = m[3];
-  } else if ((m = t.match(/^(?:(\d+)\s+)?(\d+)\/(\d+)\s*(.*)$/)) && +m[3]) {
-    x = (m[1] ? +m[1] : 0) + +m[2] / +m[3]; reszta = m[4];
-  } else if ((m = t.match(/^(\d+)(?:[,.](\d+))?\.?\s*(.*)$/))) {
-    x = m[2] ? parseFloat(m[1] + '.' + m[2]) : +m[1]; reszta = m[3];
-  } else {
+  if (/\bn\.|\bur\.|urodz|natus|nata\b|\b1[5-9]\d\d\b/i.test(surowy)) {
+    return { tekst: czysc(surowy), ulamek: false, uwaga: `zamiast wieku data urodzenia: „${surowy}”` };
+  }
+  const t = surowy.replace(/\(.*?\)/g, ' ').replace(/(\d),(\d)/g, '$1.$2').replace(/\s+/g, ' ').trim();   // „4 11/12 (5) lat” -> „4 11/12 lat”
+  const nawias = /\(/.test(surowy);
+  const czesci = [];
+  let nieznana = false;
+  for (const m of t.matchAll(RE_WIEK)) {
+    if (!m[0].trim()) continue;
+    let x;
+    if (m[2] !== undefined) { if (!+m[3]) continue; x = (m[1] ? +m[1] : 0) + +m[2] / +m[3]; }
+    else if (m[5]) x = (m[4] ? +m[4] : 0) + ULAMKI[m[5]];
+    else x = +m[6];
+    const j = m[7] ? JEDNOSTKI.find((jj) => jj.re.test(m[7])) : null;
+    if (m[7] && !j) nieznana = true;
+    czesci.push({ x, j });
+  }
+  if (!czesci.length || nieznana) {
     return { tekst: czysc(ulamkiNaDziesietne(surowy)), ulamek: false, uwaga: `wiek w nietypowym zapisie: „${surowy}”` };
   }
+  // jedna jednostka: ta sama; kilka („4 lata 3 miesiące”): wszystko w największej z nich
+  const jednostki = czesci.map((c) => c.j).filter(Boolean);
+  const glowna = jednostki.length ? JEDNOSTKI.find((jj) => jednostki.includes(jj)) : null;
+  const x = czesci.length === 1 ? czesci[0].x
+    : czesci.reduce((s, c) => s + c.x * (c.j || glowna).dni, 0) / glowna.dni;
   const ulamek = !Number.isInteger(x);
   const y = zaokraglij(x);
-  reszta = reszta.replace(/^[\s.,]+|[\s.,]+$/g, '');
-  let tekst;
-  if (!reszta) {
-    tekst = dziesietna(y);                                        // sama liczba bez jednostki zostaje liczbą
-  } else {
-    const j = JEDNOSTKI.find((jj) => jj.re.test(reszta));
-    if (!j) return { tekst: `${dziesietna(y)} ${czysc(reszta)}`, ulamek, uwaga: `nieznana jednostka wieku: „${surowy}”` };
-    tekst = `${dziesietna(y)} ${odmiana(y, j.formy)}`;
-  }
+  const tekst = glowna ? `${dziesietna(y)} ${odmiana(y, glowna.formy)}` : dziesietna(y);   // sama liczba zostaje liczbą
   const uwagi = [];
-  if (ulamek && y !== x) uwagi.push(`wiek zaokrąglony z „${surowy}”`);
+  if (Math.abs(y - x) > 1e-9) uwagi.push(`wiek zaokrąglony z „${surowy}”`);
   if (nawias) uwagi.push(`wiek z nawiasem w źródle: „${surowy}”`);
   return { tekst, ulamek, uwaga: uwagi.join('; ') || undefined };
 }
