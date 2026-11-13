@@ -163,9 +163,9 @@ export function data(r, m, d) {
   return `${r}.${m ? dwie(m) : '00'}.${d ? dwie(d) : '00'}`;
 }
 
-/** Data w uwagach (pogrzeb): dd-mm-rrrr. */
+/** Data w uwagach (pogrzeb): dd.mm.rrrr. */
 export function dataUwag(r, m, d) {
-  return `${d ? dwie(d) : '00'}-${m ? dwie(m) : '00'}-${r}`;
+  return `${d ? dwie(d) : '00'}.${m ? dwie(m) : '00'}.${r}`;
 }
 
 // ------------------------------------------------------------------ słownik imion łacińskich
@@ -344,7 +344,7 @@ export function konwertujAkt(wycinek, kontekst) {
     if (!mp && miesiacZgonu) mp = dz.d && dp.d < dz.d ? (miesiacZgonu % 12) + 1 : miesiacZgonu;
     if (mp) {
       const rp = dp.r || (miesiacZgonu && mp < miesiacZgonu ? rok + 1 : rok);
-      pogrzeb = dataUwag(rp, mp, dp.d);            // w uwagach dd-mm-rrrr (kolumna „data” zostaje RRRR.MM.DD)
+      pogrzeb = dataUwag(rp, mp, dp.d);            // w uwagach dd.mm.rrrr (kolumna „data” zostaje RRRR.MM.DD)
       if (dz.d && miesiacZgonu && data(rp, mp, dp.d) < data(rok, miesiacZgonu, dz.d)) flaga('M', 'pogrzeb wcześniej niż zgon?');
     }
   }
