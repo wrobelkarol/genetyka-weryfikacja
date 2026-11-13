@@ -74,7 +74,7 @@ main { padding: 16px; max-width: 1400px; width: 100%; }
 .komunikat.blad { background: var(--uwaga-tlo); border-color: var(--zle); }
 .komunikat .przyciski { margin-left: auto; }
 
-.sekcja { background: var(--karta); border: 1px solid var(--linia); border-radius: 8px; margin: 0 0 14px; padding: 10px 14px 12px; }
+.sekcja { scroll-margin-top: calc(var(--wys-naglowka, 53px) + 8px); background: var(--karta); border: 1px solid var(--linia); border-radius: 8px; margin: 0 0 14px; padding: 10px 14px 12px; }
 .sekcja h2 { font-size: 15px; margin: 0 0 8px; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
 .sekcja h2 .opis { color: var(--szary); font-weight: normal; font-size: 13.5px; display: inline-flex; gap: 8px; align-items: center; }
 .sekcja h2 .prawo { margin-left: auto; display: flex; gap: 8px; font-weight: normal; }

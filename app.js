@@ -321,7 +321,9 @@ async function pokazAkt(i, przewin = true) {
   rysujGeneteke();
   rysujListe();
   odswiezPrzyciski();
-  if (przewin) window.scrollTo({ top: 0 });
+  // po przejściu do aktu pokazujemy całą część „Format Geneteki” (data, imię ojca i matki, nazwisko matki…),
+  // a nie górę strony – wycinek i pola z Weryfikacji są kawałek wyżej
+  if (przewin) $('#sekcja-geneteki').scrollIntoView({ block: 'start' });
 }
 
 function rysujWeryfikacje(wycinek) {
